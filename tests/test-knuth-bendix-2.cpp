@@ -82,6 +82,35 @@ namespace libsemigroups {
                || (x.first == y.first && shortlex_compare(x.second, y.second));
       }
     };
+
+    void add_sigma_sylvester_relations(Presentation<word_type>& p,
+                                       size_t                   nr_gens,
+                                       size_t                   max_length,
+                                       size_t                   sigma = 2) {
+      using words::operator+;
+      p.alphabet(nr_gens);
+      p.contains_empty_word(true);
+      if (nr_gens <= 1) {
+        return;
+      }
+      for (size_t a = 0; a < nr_gens; ++a) {
+        presentation::add_rule_no_checks(
+            p, words::pow(word_type({a}), sigma), word_type({a}));
+      }
+
+      WordRange words;
+      words.alphabet_size(nr_gens).max(max_length + 1);
+      for (size_t a = 0; a < nr_gens; ++a) {
+        for (size_t b = a; b < nr_gens; ++b) {
+          for (size_t c = b + 1; c < nr_gens; ++c) {
+            for (auto& W : words) {
+              presentation::add_rule_no_checks(
+                  p, a + (c + W) + b, c + (a + W) + b);
+            }
+          }
+        }
+      }
+    }
   }  // namespace
 
   // Fibonacci group F(2,5) - monoid presentation - has order 12 (group
