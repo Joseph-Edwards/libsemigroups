@@ -1762,4 +1762,102 @@ namespace libsemigroups {
     REQUIRE(S.number_of_idempotents() == 5);
     REQUIRE(kb.number_of_classes() == 6);
   }
+
+  TEMPLATE_TEST_CASE("2-sylvester monoid",
+                     "[282][knuth-bendix][quick]",
+                     KNUTH_BENDIX_TYPES) {
+    auto                               rg = ReportGuard(false);
+    Presentation<word_type>            p;
+    TestType                           kb(twosided, p);
+    std::unordered_map<size_t, size_t> nr_classes
+        = {{2, 6}, {3, 26}, {4, 142}, {5, 882}, {6, 5910}};
+    std::unordered_map<size_t, size_t> nr_idempotents
+        = {{2, 5}, {3, 16}, {4, 63}, {5, 286}, {6, 1421}};
+
+    for (size_t nr_gens = 2; nr_gens <= 5; ++nr_gens) {
+      p.init();
+      add_sigma_sylvester_relations(p, nr_gens, nr_gens - 2);
+      presentation::sort_each_rule(p);
+      presentation::sort_rules(p);
+      presentation::remove_trivial_rules(p);
+      p.contains_empty_word(true);
+      kb.init(twosided, p);
+      p      = to_presentation<word_type>(kb);
+      auto S = to_froidure_pin(kb);
+
+      REQUIRE(S.size() == kb.number_of_classes());
+      REQUIRE(kb.number_of_classes() == nr_classes[nr_gens]);
+      REQUIRE(S.number_of_idempotents() == nr_idempotents[nr_gens]);
+    }
+
+    /*
+    for (size_t nr_gens = 2; nr_gens < 7; ++nr_gens) {
+      max_length = 0;
+      do {
+        std::cout << max_length;
+        p.init();
+        add_sigma_sylvester_relations(p, nr_gens, max_length);
+        presentation::sort_each_rule(p);
+        presentation::sort_rules(p);
+        presentation::remove_trivial_rules(p);
+        p.contains_empty_word(true);
+        kb.init(twosided, p);
+        ++max_length;
+      } while (kb.number_of_classes() != nr_class[nr_gens]);
+      --max_length;
+      std::cout << fmt::format("\nn: {}, min: {}, rules: {}\n",
+                               nr_gens,
+                               max_length,
+                               kb.number_of_active_rules());
+    }
+    */
+  }
+
+  TEMPLATE_TEST_CASE("3-sylvester monoid",
+                     "[283][knuth-bendix][standard]",
+                     KNUTH_BENDIX_TYPES) {
+    auto                               rg           = ReportGuard(false);
+    bool                               print_output = false;
+    size_t                             max_length;
+    Presentation<word_type>            p;
+    TestType                           kb(twosided, p);
+    std::unordered_map<size_t, size_t> nr_classes
+        = {{2, 21}, {3, 255}, {4, 3945}, {5, 69339}, {6, 1286589}};
+
+    for (size_t nr_gens = 2; nr_gens <= 4; ++nr_gens) {
+      max_length = 0;
+      do {
+        p.init();
+        add_sigma_sylvester_relations(p, nr_gens, max_length, 3);
+        presentation::sort_each_rule(p);
+        presentation::sort_rules(p);
+        presentation::remove_trivial_rules(p);
+        p.contains_empty_word(true);
+        kb.init(twosided, p);
+        ++max_length;
+      } while (kb.number_of_classes() != nr_classes[nr_gens]);
+      --max_length;
+      if (print_output) {
+        std::cout << fmt::format("\nn: {}, min: {}, rules: {}\n",
+                                 nr_gens,
+                                 max_length,
+                                 kb.number_of_active_rules());
+      }
+    }
+  }
+
+  TEMPLATE_TEST_CASE("3-sylvester monoid x 2",
+                     "[284][knuth-bendix][extreme]",
+                     KNUTH_BENDIX_TYPES) {
+    Presentation<word_type> p;
+
+    add_sigma_sylvester_relations(p, 5, 3, 3);
+    presentation::sort_each_rule(p);
+    presentation::sort_rules(p);
+    presentation::remove_trivial_rules(p);
+    p.contains_empty_word(true);
+
+    TestType kb(twosided, p);
+    REQUIRE(kb.number_of_classes() == 69339);
+  }
 }  // namespace libsemigroups
