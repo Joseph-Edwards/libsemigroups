@@ -46,6 +46,7 @@
 #include "catch_amalgamated.hpp"  // for AssertionHandler, oper...
 #include "test-main.hpp"          // for TEMPLATE_TEST_CASE
 
+#include "libsemigroups/cong.hpp"             // for Congruence
 #include "libsemigroups/constants.hpp"        // for operator==, operator!=
 #include "libsemigroups/exception.hpp"        // for LibsemigroupsException
 #include "libsemigroups/fpsemi-examples.hpp"  // for chinese
@@ -1763,86 +1764,93 @@ namespace libsemigroups {
     REQUIRE(kb.number_of_classes() == 6);
   }
 
-  TEMPLATE_TEST_CASE("2-sylvester monoid",
-                     "[282][knuth-bendix][quick]",
-                     KNUTH_BENDIX_TYPES) {
+  LIBSEMIGROUPS_TEST_CASE("Congruence",
+                          "282",
+                          "2-sylvester monoid",
+                          "[cong][quick]") {
     auto                               rg = ReportGuard(false);
     Presentation<word_type>            p;
-    TestType                           kb(twosided, p);
-    std::unordered_map<size_t, size_t> nr_classes
-        = {{2, 6}, {3, 26}, {4, 142}, {5, 882}, {6, 5910}};
-    std::unordered_map<size_t, size_t> nr_idempotents
-        = {{2, 5}, {3, 16}, {4, 63}, {5, 286}, {6, 1421}};
+    std::unordered_map<size_t, size_t> nr_classes     = {{2, 6},
+                                                         {3, 26},
+                                                         {4, 142},
+                                                         {5, 882},
+                                                         {6, 5'910},
+                                                         {7, 41'610},
+                                                         {8, 303'390},
+                                                         {9, 2'270'690}};
+    std::unordered_map<size_t, size_t> nr_idempotents = {{2, 5},
+                                                         {3, 16},
+                                                         {4, 63},
+                                                         {5, 286},
+                                                         {6, 1'421},
+                                                         {7, 7'484},
+                                                         {8, 41'019},
+                                                         {9, 231'418}};
 
-    for (size_t nr_gens = 2; nr_gens <= 5; ++nr_gens) {
+    Congruence cong(twosided, p);
+    for (size_t nr_gens = 2; nr_gens <= 7; ++nr_gens) {
       p.init();
       add_sigma_sylvester_relations(p, nr_gens, nr_gens - 2);
       presentation::sort_each_rule(p);
       presentation::sort_rules(p);
       presentation::remove_trivial_rules(p);
       p.contains_empty_word(true);
-      kb.init(twosided, p);
-      p      = to_presentation<word_type>(kb);
-      auto S = to_froidure_pin(kb);
-
-      REQUIRE(S.size() == kb.number_of_classes());
-      REQUIRE(kb.number_of_classes() == nr_classes[nr_gens]);
-      REQUIRE(S.number_of_idempotents() == nr_idempotents[nr_gens]);
+      cong.init(twosided, p);
+      cong.run();
+      REQUIRE(cong.number_of_classes() == nr_classes[nr_gens]);
     }
 
-    /*
-    for (size_t nr_gens = 2; nr_gens < 7; ++nr_gens) {
-      max_length = 0;
-      do {
-        std::cout << max_length;
-        p.init();
-        add_sigma_sylvester_relations(p, nr_gens, max_length);
-        presentation::sort_each_rule(p);
-        presentation::sort_rules(p);
-        presentation::remove_trivial_rules(p);
-        p.contains_empty_word(true);
-        kb.init(twosided, p);
-        ++max_length;
-      } while (kb.number_of_classes() != nr_class[nr_gens]);
-      --max_length;
-      std::cout << fmt::format("\nn: {}, min: {}, rules: {}\n",
-                               nr_gens,
-                               max_length,
-                               kb.number_of_active_rules());
-    }
-    */
+    // size_t     max_length;
+    // Congruence cong(twosided, p);
+    // for (size_t nr_gens = 2; nr_gens <= 9; ++nr_gens) {
+    //   std::cerr << "----------------------------------------\n";
+    //   std::cerr << fmt::format("Testing |A| = {}:\n", nr_gens);
+    //   max_length = 0;
+    //   do {
+    //     std::cerr << fmt::format("  {} . . .", max_length);
+    //     p.init();
+    //     add_sigma_sylvester_relations(p, nr_gens, max_length);
+    //     presentation::sort_each_rule(p);
+    //     presentation::sort_rules(p);
+    //     presentation::remove_trivial_rules(p);
+    //     p.contains_empty_word(true);
+    //     cong.init(twosided, p);
+    //     cong.run();
+    //     std::cerr << " Done\n";
+    //     // cong.max_threads(12);
+    //     ++max_length;
+    //   } while (cong.number_of_classes() != nr_classes[nr_gens]);
+    // }
   }
 
   TEMPLATE_TEST_CASE("3-sylvester monoid",
                      "[283][knuth-bendix][standard]",
                      KNUTH_BENDIX_TYPES) {
-    auto                               rg           = ReportGuard(false);
-    bool                               print_output = false;
-    size_t                             max_length;
-    Presentation<word_type>            p;
-    TestType                           kb(twosided, p);
+    auto                    rg = ReportGuard(false);
+    size_t                  max_length;
+    Presentation<word_type> p;
+    Congruence              cong(twosided, p);
+
     std::unordered_map<size_t, size_t> nr_classes
         = {{2, 21}, {3, 255}, {4, 3945}, {5, 69339}, {6, 1286589}};
 
-    for (size_t nr_gens = 2; nr_gens <= 4; ++nr_gens) {
+    for (size_t nr_gens = 2; nr_gens <= 6; ++nr_gens) {
+      std::cerr << "----------------------------------------\n";
+      std::cerr << fmt::format("Testing |A| = {}:\n", nr_gens);
       max_length = 0;
       do {
+        std::cerr << fmt::format("  {} . . .", max_length);
         p.init();
         add_sigma_sylvester_relations(p, nr_gens, max_length, 3);
         presentation::sort_each_rule(p);
         presentation::sort_rules(p);
         presentation::remove_trivial_rules(p);
         p.contains_empty_word(true);
-        kb.init(twosided, p);
+        cong.init(twosided, p);
+        cong.run();
+        std::cerr << " Done\n";
         ++max_length;
-      } while (kb.number_of_classes() != nr_classes[nr_gens]);
-      --max_length;
-      if (print_output) {
-        std::cout << fmt::format("\nn: {}, min: {}, rules: {}\n",
-                                 nr_gens,
-                                 max_length,
-                                 kb.number_of_active_rules());
-      }
+      } while (cong.number_of_classes() != nr_classes[nr_gens]);
     }
   }
 
