@@ -19,8 +19,8 @@
 // This file contains the implementation of a trie with suffix links for use by
 // the Aho-Corasick dictionary search algorithm
 
-#ifndef LIBSEMIGROUPS_AHO_CORASICK_HPP_
-#define LIBSEMIGROUPS_AHO_CORASICK_HPP_
+#ifndef LIBSEMIGROUPS_AHO_CORASICK_CLASS_HPP_
+#define LIBSEMIGROUPS_AHO_CORASICK_CLASS_HPP_
 
 #include <memory>         // for allocator_traits<>::value_type
 #include <set>            // for set
@@ -30,24 +30,19 @@
 #include <unordered_map>  // for unordered_map
 #include <vector>         // for vector
 
+#include "detail/aho-corasick-impl.hpp"  // for AhoCorasickImpl
+#include "detail/citow-map.hpp"          // for citow
+
 #include "constants.hpp"  // for Undefined, operator!=, UNDEFINED, operator==
 #include "debug.hpp"      // for LIBSEMIGROUPS_ASSERT
 #include "exception.hpp"  // for LIBSEMIGROUPS_EXCEPTION
 #include "ranges.hpp"     // for rx::iterator_range
 #include "types.hpp"      // for letter_type, word_type
 
-// TODO(2) make nodes accessible as indices of some list (numbered nodes).
-// Make sure this address the badness of traversals (lots of different data
-// types and it just feels a bit hacky)
-// TODO(2) is it worthwhile storing a pointer to the terminal nodes beneath
-// each node? If this can be updated quickly, it would save a lot of time in
-// overlap/confluence checking. One compromise is to have a pointer to the rules
-// any given node is contained within. This could be updated easily when adding
-// new rules, but more care would be needed when removing rules.
-// TODO(1) change names from set_X and get_X to X(val) and X(). e.g.
-// set_suffix_link('a') -> suffix_link('a')
-// TODO(2) add something that gets a ranges element to find all terminal nodes.
-// TODO(2) change all_nodes[i] to node_no_checks(i);
+// TODO(0) Fix:
+// * signatures
+// * active_nodes
+// * anything that returns a node
 
 //! \defgroup aho_corasick_group Aho Corasick
 //!
@@ -61,7 +56,7 @@ namespace libsemigroups {
   //!
   //! \brief For an implementation of the Aho-Corasick algorithm.
   //!
-  //! Defined in `aho-corasick.hpp`.
+  //! Defined in `aho-corasick-class.hpp`.
   //!
   //! This class implements a trie based data structure with suffix links to be
   //! used with the Aho-Corasick dictionary searching algorithm. An introduction
@@ -77,131 +72,40 @@ namespace libsemigroups {
   //! memory needs to be allocated and deallocated for nodes.
   //!
   //! Several helper functions are provided in the `aho_corasick` namespace.
-  class AhoCorasick {
-   public:
-    //! Alias for the index of a node in the trie
-    using index_type = size_t;
-
-    //! Used for `word_type` iterators.
-    using const_iterator = typename word_type::const_iterator;
-
-    //! Constant for the root of the trie
-    static constexpr index_type root = 0;
-
+  class AhoCorasick : public detail::AhoCorasickImpl {
    private:
-    //  Implements the node of a trie
-    class Node {
-     private:
-      mutable std::unordered_map<letter_type, index_type> _children;
-      mutable index_type                                  _link;
-      mutable size_t                                      _height;
-      index_type                                          _parent;
-      letter_type                                         _parent_letter;
-      bool                                                _terminal;
-
-     public:
-      Node() : Node(UNDEFINED, UNDEFINED) {}
-
-      Node(index_type parent, letter_type a)
-          : _children(),
-            _link(),
-            _height(),
-            _parent(),
-            _parent_letter(),
-            _terminal() {
-        init(parent, a);
-      }
-
-      Node(const Node&)            = default;
-      Node& operator=(const Node&) = default;
-      Node(Node&&)                 = default;
-      Node& operator=(Node&&)      = default;
-
-      Node& init(index_type parent, letter_type a) noexcept;
-
-      Node& init() noexcept {
-        return init(UNDEFINED, UNDEFINED);
-      }
-
-      [[nodiscard]] index_type child(letter_type a) const;
-
-      [[nodiscard]] size_t height() const noexcept {
-        return _height;
-      }
-
-      [[nodiscard]] index_type suffix_link() const noexcept {
-        return _link;
-      }
-
-      void set_suffix_link(index_type val) const noexcept {
-        _link = val;
-      }
-
-      void clear_suffix_link() const noexcept;
-
-      [[nodiscard]] decltype(_children)& children() const noexcept {
-        return _children;
-      }
-
-      [[nodiscard]] size_t number_of_children() const noexcept {
-        return _children.size();
-      }
-
-      [[nodiscard]] bool is_terminal() const noexcept {
-        return _terminal;
-      }
-
-      Node& set_terminal(bool val) noexcept {
-        _terminal = val;
-        return *this;
-      }
-
-      [[nodiscard]] index_type parent() const noexcept {
-        return _parent;
-      }
-
-      [[nodiscard]] letter_type parent_letter() const noexcept {
-        return _parent_letter;
-      }
-
-      void set_height(size_t val) const noexcept {
-        _height = val;
-      }
-    };
-
-    std::vector<Node>      _all_nodes;
-    std::set<index_type>   _active_nodes_index;
-    std::stack<index_type> _inactive_nodes_index;
-    mutable bool           _valid_links;
+    using AhoCorasickImpl_ = detail::AhoCorasickImpl;
+    // TODO(0) make this a set?
+    std::vector<letter_type> _alphabet;
 
    public:
     //! \brief Construct an empty AhoCorasick.
     //!
     //! Construct an AhoCorasick containing only the root that corresponds to
     //! the empty word \f$\varepsilon\f$.
-    AhoCorasick();
+    // AhoCorasick() = default;
 
     //! \brief Default copy constructor.
     //!
     //! Default copy constructor.
-    AhoCorasick(AhoCorasick const&) = default;
+    // AhoCorasick(AhoCorasick const&) = default;
 
     //! \brief Default copy assignment.
     //!
     //! Default copy assignment.
-    AhoCorasick& operator=(AhoCorasick const&) = default;
+    // AhoCorasick& operator=(AhoCorasick const&) = default;
 
     //! \brief Default move constructor.
     //!
     //! Default move constructor.
-    AhoCorasick(AhoCorasick&&) = default;
+    // AhoCorasick(AhoCorasick&&) = default;
 
     //! \brief Default move assignment.
     //!
     //! Default move assignment.
-    AhoCorasick& operator=(AhoCorasick&&) = default;
+    // AhoCorasick& operator=(AhoCorasick&&) = default;
 
-    ~AhoCorasick();
+    // ~AhoCorasick();
 
     //! \brief Reinitialise an existing AhoCorasick object.
     //!
@@ -215,7 +119,15 @@ namespace libsemigroups {
     //!
     //! \complexity
     //! Linear in the number of nodes in the trie.
-    AhoCorasick& init();
+    AhoCorasick& init() {
+      // _alphabet.clear();
+      AhoCorasickImpl_::init();
+      return *this;
+    }
+
+    [[nodiscard]] std::vector<letter_type> const& alphabet() const {
+      return _alphabet;
+    }
 
     //! \brief Returns the number of nodes in the trie.
     //!
@@ -229,9 +141,9 @@ namespace libsemigroups {
     //!
     //! \complexity
     //! Constant.
-    [[nodiscard]] size_t number_of_nodes() const noexcept {
-      return _active_nodes_index.size();
-    }
+    // [[nodiscard]] size_t number_of_nodes() const noexcept {
+    //   return _active_nodes_index.size();
+    // }
 
     //! \brief Return the active nodes.
     //!
@@ -245,10 +157,10 @@ namespace libsemigroups {
     //!
     //! \complexity
     //! Constant.
-    [[nodiscard]] rx::iterator_range<std::set<index_type>::const_iterator>
-    active_nodes() const {
-      return rx::iterator_range(cbegin_nodes(), cend_nodes());
-    }
+    // [[nodiscard]] rx::iterator_range<std::set<index_type>::const_iterator>
+    // active_nodes() const {
+    //   return rx::iterator_range(cbegin_nodes(), cend_nodes());
+    // }
 
     //! \brief Return a const iterator pointing to the first active node.
     //!
@@ -262,10 +174,10 @@ namespace libsemigroups {
     //!
     //! \complexity
     //! Constant.
-    [[nodiscard]] std::set<index_type>::const_iterator
-    cbegin_nodes() const noexcept {
-      return _active_nodes_index.cbegin();
-    }
+    // [[nodiscard]] std::set<index_type>::const_iterator
+    // cbegin_nodes() const noexcept {
+    //   return _active_nodes_index.cbegin();
+    // }
 
     //! \brief Return a const iterator pointing one beyond the last active node.
     //!
@@ -279,10 +191,10 @@ namespace libsemigroups {
     //!
     //! \complexity
     //! Constant.
-    [[nodiscard]] std::set<index_type>::const_iterator
-    cend_nodes() const noexcept {
-      return _active_nodes_index.cend();
-    }
+    // [[nodiscard]] std::set<index_type>::const_iterator
+    // cend_nodes() const noexcept {
+    //   return _active_nodes_index.cend();
+    // }
 
     //! \brief Return an iterator pointing to the first active node.
     //!
@@ -295,10 +207,11 @@ namespace libsemigroups {
     //! \noexcept
     //!
     //! \complexity
-    //! Constant.
-    [[nodiscard]] std::set<index_type>::iterator begin_nodes() const noexcept {
-      return _active_nodes_index.begin();
-    }
+    // //! Constant.
+    // [[nodiscard]] std::set<index_type>::iterator begin_nodes() const noexcept
+    // {
+    //   return _active_nodes_index.begin();
+    // }
 
     //! \brief Return an iterator pointing one beyond the last active node.
     //!
@@ -312,9 +225,9 @@ namespace libsemigroups {
     //!
     //! \complexity
     //! Constant.
-    [[nodiscard]] std::set<index_type>::iterator end_nodes() const noexcept {
-      return _active_nodes_index.end();
-    }
+    // [[nodiscard]] std::set<index_type>::iterator end_nodes() const noexcept {
+    //   return _active_nodes_index.end();
+    // }
 
     //! \brief Check and add a word to the trie.
     //!
@@ -327,7 +240,11 @@ namespace libsemigroups {
     //!
     //! \sa \ref add_word_no_checks.
     template <typename Iterator>
-    index_type add_word(Iterator first, Iterator last);
+    index_type add_word(Iterator first, Iterator last) {
+      update_alphabet(first, last);
+      return AhoCorasickImpl_::add_word(detail::citow_map(&_alphabet, first),
+                                        detail::citow_map(&_alphabet, last));
+    }
 
     //! \brief Add a word to the trie.
     //!
@@ -354,20 +271,29 @@ namespace libsemigroups {
     //!
     //! \sa \ref signature
     template <typename Iterator>
-    index_type add_word_no_checks(Iterator first, Iterator last);
+    index_type add_word_no_checks(Iterator first, Iterator last) {
+      update_alphabet(first, last);
+      return AhoCorasickImpl_::add_word_no_checks(
+          detail::citow_map(&_alphabet, first),
+          detail::citow_map(&_alphabet, last));
+    }
 
     //! \brief Check and add a word to the trie.
     //!
     //! This function does the same as `rm_word_no_checks(Iterator, Iterator)`
-    //! after first checking that the word corresponding to \p first and \p last
-    //! is terminal node in the trie.
+    //! after first checking that the word corresponding to \p first and \p
+    //! last is terminal node in the trie.
     //!
-    //! \throws LibsemigroupsException if the word corresponding to \p first and
-    //! \p last does not correspond to an existing terminal node in the trie.
+    //! \throws LibsemigroupsException if the word corresponding to \p first
+    //! and \p last does not correspond to an existing terminal node in the
+    //! trie.
     //!
     //! \sa \ref rm_word_no_checks.
     template <typename Iterator>
-    index_type rm_word(Iterator first, Iterator last);
+    index_type rm_word(Iterator first, Iterator last) {
+      return AhoCorasickImpl_::rm_word(detail::citow_map(&_alphabet, first),
+                                       detail::citow_map(&_alphabet, last));
+    }
 
     //! \brief Remove a word from the trie.
     //!
@@ -383,11 +309,12 @@ namespace libsemigroups {
     //! If \f$W\f$ corresponds to a terminal node \f$n\f$ with children, then
     //! calling this function makes \f$n\f$ not terminal.
     //!
-    //! If \f$W\f$ does not correspond to a terminal node, then calling this
-    //! function does nothing.
+    //! If \f$W\f$ does not correspond to a terminal node, then
+    //! calling this function does nothing.
     //!
     //! \tparam Iterator the type of the 1st and 2nd parameters.
-    //! \param first iterator pointing to the first letter of the word to add.
+    //! \param first iterator pointing to the first letter of the
+    //! word to add.
     //! \param last one beyond the last letter of the word to add.
     //!
     //! \returns An \ref index_type corresponding to the node with signature
@@ -401,7 +328,11 @@ namespace libsemigroups {
     //!
     //! \sa \ref signature.
     template <typename Iterator>
-    index_type rm_word_no_checks(Iterator first, Iterator last);
+    index_type rm_word_no_checks(Iterator first, Iterator last) {
+      return AhoCorasickImpl_::rm_word_no_checks(
+          detail::citow_map(&_alphabet, first),
+          detail::citow_map(&_alphabet, last));
+    }
 
     //! \brief Traverse the trie using suffix links where necessary.
     //!
@@ -411,8 +342,8 @@ namespace libsemigroups {
     //!
     //! If \p current is the index of a node with signature \f$W\f$, and
     //! \p a is the letter \f$a\f$, then \c traverse_no_checks(current, a)
-    //! returns the index of the node with signature equal to the longest suffix
-    //! of \f$Wa\f$ contained in the trie.
+    //! returns the index of the node with signature equal to the longest
+    //! suffix of \f$Wa\f$ contained in the trie.
     //!
     //! \param current the index of the node to traverse from.
     //! \param a the letter to traverse.
@@ -423,7 +354,9 @@ namespace libsemigroups {
     //! \no_libsemigroups_except
     // TODO(2) Should this be templated?
     [[nodiscard]] index_type traverse_no_checks(index_type  current,
-                                                letter_type a) const;
+                                                letter_type a) const {
+      return AhoCorasickImpl_::traverse_no_checks(current, translate_letter(a));
+    }
 
     //! \brief Traverse the trie using suffix links where necessary.
     //!
@@ -435,8 +368,7 @@ namespace libsemigroups {
     //!
     //! \sa \ref traverse_no_checks, \ref throw_if_node_index_not_active.
     [[nodiscard]] index_type traverse(index_type current, letter_type a) const {
-      throw_if_node_index_not_active(current);
-      return traverse_no_checks(current, a);
+      return AhoCorasickImpl_::traverse(current, translate_letter(a));
     }
 
     //! \brief Find the signature of a node (in-place).
@@ -459,13 +391,13 @@ namespace libsemigroups {
     //! particular, if the index \p i is greater than the number of nodes that
     //! have ever been created, then bad things will happen.
     // TODO(2) template to accept Iterator not word_type&
-    void signature_no_checks(word_type& w, index_type i) const;
+    // void signature_no_checks(word_type& w, index_type i) const;
 
     //! \brief Find the signature of a node (out-of-place).
     //!
     //! Return the the signature of the node with index \p i. Recall that the
-    //! *signature* of a node  \f$n\f$ is the word consisting of the edge labels
-    //! of the unique path from the root to \f$n\f$.
+    //! *signature* of a node  \f$n\f$ is the word consisting of the edge
+    //! labels of the unique path from the root to \f$n\f$.
     //!
     //! \param i the index of the node whose signature is sought.
     //!
@@ -480,11 +412,11 @@ namespace libsemigroups {
     //! \warning This function does no checks on its arguments whatsoever. In
     //! particular, if the index \p i is greater than the number of nodes that
     //! have ever been created, then bad things will happen.
-    word_type signature_no_checks(index_type i) const {
-      word_type w;
-      signature_no_checks(w, i);
-      return w;
-    }
+    // word_type signature_no_checks(index_type i) const {
+    //   word_type w;
+    //   signature_no_checks(w, i);
+    //   return w;
+    // }
 
     //! \brief Find the signature of a node (in-place).
     //!
@@ -495,10 +427,10 @@ namespace libsemigroups {
     //! throws.
     //!
     //! \sa \ref signature_no_checks, \ref throw_if_node_index_not_active.
-    void signature(word_type& w, index_type i) const {
-      throw_if_node_index_not_active(i);
-      signature_no_checks(w, i);
-    }
+    // void signature(word_type& w, index_type i) const {
+    //   throw_if_node_index_not_active(i);
+    //   signature_no_checks(w, i);
+    // }
 
     //! \brief Find the signature of a node (out-of-place).
     //!
@@ -509,10 +441,10 @@ namespace libsemigroups {
     //! throws.
     //!
     //! \sa \ref signature_no_checks, \ref throw_if_node_index_not_active.
-    word_type signature(index_type i) const {
-      throw_if_node_index_not_active(i);
-      return signature_no_checks(i);
-    }
+    // word_type signature(index_type i) const {
+    //   throw_if_node_index_not_active(i);
+    //   return signature_no_checks(i);
+    // }
 
     //! \brief Calculate the height of a node.
     //!
@@ -529,10 +461,10 @@ namespace libsemigroups {
     //! Linear in the return value which is, at worst, the maximum length of a
     //! word in the trie.
     //!
-    //! \warning This function does no checks on its arguments whatsoever. In
-    //! particular, if the index \p i is greater than the number of nodes that
-    //! have ever been created, then bad things will happen.
-    [[nodiscard]] size_t height_no_checks(index_type i) const;
+    //! \warning This function does no checks on its arguments whatsoever.
+    //! In particular, if the index \p i is greater than the number of
+    //! nodes that have ever been created, then bad things will happen.
+    // [[nodiscard]] size_t height_no_checks(index_type i) const;
 
     //! \brief Calculate the height of a node.
     //!
@@ -543,10 +475,10 @@ namespace libsemigroups {
     //! throws.
     //!
     //! \sa \ref height_no_checks, \ref throw_if_node_index_not_active.
-    [[nodiscard]] size_t height(index_type i) const {
-      throw_if_node_index_not_active(i);
-      return height_no_checks(i);
-    }
+    // [[nodiscard]] size_t height(index_type i) const {
+    //   throw_if_node_index_not_active(i);
+    //   return height_no_checks(i);
+    // }
 
     //! \brief Calculate the index of the suffix link of a node.
     //!
@@ -566,9 +498,9 @@ namespace libsemigroups {
     //! Linear in the height of the node.
     //!
     //! \warning This function does no checks on its arguments whatsoever. In
-    //! particular, if the index \p current is greater than the number of nodes
-    //! that have ever been created, then bad things will happen.
-    [[nodiscard]] index_type suffix_link_no_checks(index_type current) const;
+    //! particular, if the index \p current is greater than the number of
+    //! nodes that have ever been created, then bad things will happen.
+    // [[nodiscard]] index_type suffix_link_no_checks(index_type current) const;
 
     //! \brief Calculate the index of the suffix link of a node.
     //!
@@ -579,10 +511,10 @@ namespace libsemigroups {
     //! `throw_if_node_index_not_active(current)` throws.
     //!
     //! \sa \ref suffix_link_no_checks, \ref throw_if_node_index_not_active.
-    [[nodiscard]] index_type suffix_link(index_type current) const {
-      throw_if_node_index_not_active(current);
-      return suffix_link_no_checks(current);
-    }
+    // [[nodiscard]] index_type suffix_link(index_type current) const {
+    //   throw_if_node_index_not_active(current);
+    //   return suffix_link_no_checks(current);
+    // }
 
     //! \brief Return the node given an index.
     //!
@@ -605,33 +537,34 @@ namespace libsemigroups {
     //! \warning This function does no checks on its arguments whatsoever. In
     //! particular, if the index \p i is greater than the number of nodes that
     //! have ever been created, then bad things will happen.
-    [[nodiscard]] Node const& node_no_checks(index_type i) const {
-      LIBSEMIGROUPS_ASSERT(i < _all_nodes.size());
-      return _all_nodes[i];
-    }
+    // [[nodiscard]] Node const& node_no_checks(index_type i) const {
+    //   LIBSEMIGROUPS_ASSERT(i < _all_nodes.size());
+    //   return _all_nodes[i];
+    // }
 
     //! \brief Return the node given an index.
     //!
     //! After validating \p i, this function performs the same as
     //! `node_no_checks(i)`.
     //!
-    //! \throws LibsemigroupsException if `throw_if_node_index_out_of_range(i)`
-    //! throws.
+    //! \throws LibsemigroupsException if
+    //! `throw_if_node_index_out_of_range(i)` throws.
     //!
     //! \sa \ref node_no_checks, \ref throw_if_node_index_out_of_range.
-    [[nodiscard]] Node const& node(index_type i) const {
-      throw_if_node_index_out_of_range(i);
-      return node_no_checks(i);
-    }
+    // [[nodiscard]] Node const& node(index_type i) const {
+    //   throw_if_node_index_out_of_range(i);
+    //   return node_no_checks(i);
+    // }
 
     //! \brief Return the child of \p parent with edge-label \p letter.
     //!
     //! This function returns the index of the child of the node with index
-    //! \p parent along the edge labelled by \p letter. If no such child exists,
-    //! \ref UNDEFINED is returned.
+    //! \p parent along the edge labelled by \p letter. If no such child
+    //! exists, \ref UNDEFINED is returned.
     //!
     //! \param parent the index of the node whose child is sought.
-    //! \param letter the edge-label connecting the parent to the desired child.
+    //! \param letter the edge-label connecting the parent to the desired
+    //! child.
     //!
     //! \returns A value of type `index_type`.
     //!
@@ -646,9 +579,8 @@ namespace libsemigroups {
     //! that have ever been created, then bad things will happen.
     [[nodiscard]] index_type child_no_checks(index_type  parent,
                                              letter_type letter) const {
-      LIBSEMIGROUPS_ASSERT(parent < _all_nodes.size());
-      LIBSEMIGROUPS_ASSERT(_active_nodes_index.count(parent) == 1);
-      return _all_nodes[parent].child(letter);
+      return AhoCorasickImpl_::child_no_checks(parent,
+                                               translate_letter(letter));
     }
 
     //! \brief Return the child of \p parent with edge-label \p letter.
@@ -662,24 +594,23 @@ namespace libsemigroups {
     //! \sa \ref child_no_checks, \ref throw_if_node_index_not_active.
     [[nodiscard]] index_type child(index_type  parent,
                                    letter_type letter) const {
-      throw_if_node_index_not_active(parent);
-      return _all_nodes[parent].child(letter);
+      return AhoCorasickImpl_::child(parent, translate_letter(letter));
     }
 
     //! \brief Check if an index corresponds to a node.
     //!
-    //! This function checks if the given index \p i corresponds to the index of
-    //! a node; either active or inactive.
+    //! This function checks if the given index \p i corresponds to the index
+    //! of a node; either active or inactive.
     //!
     //! \param i the index to check.
     //!
-    //! \throws LibsemigroupsException if \p i does not correspond to the index
-    //! of a node; that is, if \p i is larger than the size of the container
-    //! storing the indices of nodes.
+    //! \throws LibsemigroupsException if \p i does not correspond to the
+    //! index of a node; that is, if \p i is larger than the size of the
+    //! container storing the indices of nodes.
     //!
     //! \complexity
     //! Constant.
-    void throw_if_node_index_out_of_range(index_type i) const;
+    // void throw_if_node_index_out_of_range(index_type i) const;
 
     //! \brief Check if an index corresponds to a node currently in the trie.
     //!
@@ -688,36 +619,37 @@ namespace libsemigroups {
     //!
     //! \param i the index to check.
     //!
-    //! \throws LibsemigroupsException if `throw_if_node_index_out_of_range(i)`
-    //! throws, or if
-    //! \p i is not an active node.
+    //! \throws LibsemigroupsException if
+    //! `throw_if_node_index_out_of_range(i)` throws, or if \p i is not an
+    //! active node.
     //!
     //! \complexity
     //! Constant.
     //!
     //! \sa \ref throw_if_node_index_out_of_range.
-    void throw_if_node_index_not_active(index_type i) const;
+    // void throw_if_node_index_not_active(index_type i) const;
 
    private:
-    [[nodiscard]] index_type new_active_node_no_checks(index_type  parent,
-                                                       letter_type a);
-
-    [[nodiscard]] index_type new_active_node(index_type parent, letter_type a) {
-      throw_if_node_index_not_active(parent);
-      return new_active_node_no_checks(parent, a);
-    }
-
-    void deactivate_node_no_checks(index_type i);
-
-    void deactivate_node(index_type i) {
-      throw_if_node_index_not_active(i);
-      deactivate_node_no_checks(i);
-    }
-
     template <typename Iterator>
-    [[nodiscard]] index_type traverse_trie(Iterator first, Iterator last) const;
+    void update_alphabet(Iterator first, Iterator last) {
+      size_t num_added = 0;
+      for (auto it = first; it != last; ++it) {
+        if (std::find(_alphabet.begin(), _alphabet.end(), *it)
+            == _alphabet.end()) {
+          _alphabet.push_back(*it);
+          ++num_added;
+        }
+      }
+      increase_alphabet_size_by(num_added);
+    }
 
-    void clear_suffix_links() const;
+    letter_type translate_letter(letter_type a) const {
+      letter_type d
+          = std::distance(_alphabet.cbegin(),
+                          std::find(_alphabet.begin(), _alphabet.cend(), a));
+      LIBSEMIGROUPS_ASSERT(d < _alphabet.size());
+      return d;
+    }
   };
 
   //! \ingroup aho_corasick_group
@@ -737,12 +669,12 @@ namespace libsemigroups {
   //!
   //! \brief Namespace for AhoCorasick helper functions.
   //!
-  //! Defined in `aho-corasick.hpp`.
+  //! Defined in `aho-corasick-class.hpp`.
   //!
   //! This namespace contains various helper functions for the class
   //! AhoCorasick. These functions could be functions of AhoCorasick but they
-  //! only use public member functions of AhoCorasick, and so they are declared
-  //! as free functions instead.
+  //! only use public member functions of AhoCorasick, and so they are
+  //! declared as free functions instead.
   namespace aho_corasick {
     //! Alias for the index of a node in the trie.
     using index_type = AhoCorasick::index_type;
@@ -756,8 +688,8 @@ namespace libsemigroups {
     //! \param ac AhoCorasick object to add the word to.
     //! \param w the word to add.
     //!
-    //! \returns An \ref index_type corresponding to the final node added to the
-    //! \p ac.
+    //! \returns An \ref index_type corresponding to the final node added to
+    //! the \p ac.
     //!
     //! \exceptions
     //! \no_libsemigroups_except
@@ -803,8 +735,8 @@ namespace libsemigroups {
     //! \param ac AhoCorasick object to add the word to.
     //! \param w the word to add.
     //!
-    //! \returns An \ref index_type corresponding to the final node added to the
-    //! \p ac.
+    //! \returns An \ref index_type corresponding to the final node added to
+    //! the \p ac.
     //!
     //! \throws LibsemigroupsException if the word \p w corresponds to an
     //! existing terminal node in the trie.
@@ -816,6 +748,11 @@ namespace libsemigroups {
     template <typename Word>
     index_type add_word(AhoCorasick& ac, Word const& w) {
       return ac.add_word(w.cbegin(), w.cend());
+    }
+
+    // TODO(doc)
+    inline index_type add_word(AhoCorasick& ac, char const* w) {
+      return ac.add_word(w, w + std::strlen(w));
     }
 
     //! \brief Remove a word from the trie of \p ac.
@@ -868,7 +805,13 @@ namespace libsemigroups {
     [[nodiscard]] index_type traverse_word_no_checks(AhoCorasick const& ac,
                                                      index_type         start,
                                                      Iterator           first,
-                                                     Iterator           last);
+                                                     Iterator           last) {
+      return detail::aho_corasick_impl::traverse_word_no_checks(
+          ac,
+          start,
+          detail::citow_map(&ac.alphabet(), first),
+          detail::citow_map(&ac.alphabet(), last));
+    }
 
     //! \brief Traverse the trie of \p ac using suffix links where necessary.
     //!
@@ -886,8 +829,9 @@ namespace libsemigroups {
 
     //! \brief Traverse the trie of \p ac using suffix links where necessary.
     //!
-    //! After validating \p start with respect to \p ac, this function performs
-    //! the same as `traverse_word_no_checks(ac, start, first, last)`.
+    //! After validating \p start with respect to \p ac, this function
+    //! performs the same as `traverse_word_no_checks(ac, start, first,
+    //! last)`.
     //!
     //! \throws LibsemigroupsException if
     //! `ac.throw_if_node_index_not_active(start)` throws.
@@ -909,8 +853,8 @@ namespace libsemigroups {
     //! This function performs the same as
     //! `traverse_word(ac, start, w.cbegin(), w.cend())`.
     //!
-    //! \sa \ref traverse_word(AhoCorasick const& ac, index_type start, Iterator
-    //! first, Iterator last).
+    //! \sa \ref traverse_word(AhoCorasick const& ac, index_type start,
+    //! Iterator first, Iterator last).
     template <typename Word>
     [[nodiscard]] inline index_type traverse_word(AhoCorasick const& ac,
                                                   index_type         start,
@@ -918,8 +862,8 @@ namespace libsemigroups {
       return traverse_word(ac, start, w.cbegin(), w.cend());
     }
 
-    //! \brief Traverse the trie of \p ac from the root using suffix links where
-    //! necessary.
+    //! \brief Traverse the trie of \p ac from the root using suffix links
+    //! where necessary.
     //!
     //! This function performs the same as
     //! `traverse_word_no_checks(ac, AhoCorasick::root, first, last)`.
@@ -937,8 +881,8 @@ namespace libsemigroups {
       return traverse_word_no_checks(ac, AhoCorasick::root, first, last);
     }
 
-    //! \brief Traverse the trie of \p ac from the root using suffix links where
-    //! necessary.
+    //! \brief Traverse the trie of \p ac from the root using suffix links
+    //! where necessary.
     //!
     //! This function performs the same as
     //! `traverse_word_no_checks(ac, AhoCorasick::root, w.cbegin(), w.end())`.
@@ -959,12 +903,12 @@ namespace libsemigroups {
     //!
     //! Construct a \ref Dot object representing the trie of \p ac with suffix
     //! links.
-    [[nodiscard]] Dot dot(AhoCorasick& ac);
+    // [[nodiscard]] Dot dot(AhoCorasick& ac);
 
   }  // namespace aho_corasick
 
 }  // namespace libsemigroups
 
-#include "aho-corasick.tpp"
+#include "aho-corasick-class.tpp"
 
-#endif  // LIBSEMIGROUPS_AHO_CORASICK_HPP_
+#endif  // LIBSEMIGROUPS_AHO_CORASICK_CLASS_HPP_
