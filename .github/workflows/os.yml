@@ -1,5 +1,5 @@
 name: OS
-on: pull_request
+on: [pull_request, workflow_dispatch]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -138,3 +138,33 @@ jobs:
             ./autogen.sh && ./configure
             make test_all -j4
             ./test_all "[quick]"
+  single-core:
+    name: Ubuntu single core
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    env:
+      CXX: ccache g++
+      CXXFLAGS: -fdiagnostics-color -O2 -g
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test file system
+        run: |
+          ls /sys/devices/system/cpu/cpu1
+          sudo sh -c 'echo 0 > /sys/devices/system/cpu/cpu1/online'
+          lscpu | grep -E '^Thread|^Core|^Socket'
+      - name: Setup ccache . . .
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          update_packager_index: false
+          install_ccache: true
+      - name: Configure . . .
+        run: |
+          mkdir -p m4
+          ./autogen.sh
+          ./configure CXX="$CXX" CXXFLAGS="$CXXFLAGS"
+      - name: Build libsemigroups . . .
+        run: make -j4
+      - name: Build test_all . . .
+        run: make test_all -j4
+      - name: Run the quick tests . . .
+        run: ./test_all "[quick]"
