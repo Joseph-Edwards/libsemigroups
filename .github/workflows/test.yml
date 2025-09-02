@@ -26,7 +26,6 @@ jobs:
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: builder
-          cache-environment: true
           create-args: >-
             libcxx
             make
