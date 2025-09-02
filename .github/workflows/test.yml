@@ -46,7 +46,7 @@ jobs:
       - name: Configure . . .
         run: |
           ./autogen.sh
-          ./configure CXX="ccache ${{ matrix.sys.compiler }}"
+          ./configure CXX="ccache ${{ matrix.sys.compiler }} -v"
       - name: Build libsemigroups . . .
         run: make -j4
       - name: Build test_all . . .
