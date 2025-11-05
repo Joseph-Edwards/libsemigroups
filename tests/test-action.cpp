@@ -50,6 +50,7 @@ namespace libsemigroups {
                           "row and column basis orbits for BMat8 x 1",
                           "[quick]") {
     auto         rg = ReportGuard(false);
+    int*         x  = new int(0);
     row_orb_type row_orb;
     row_orb.add_seed(BMat8({{1, 0, 0}, {0, 1, 0}, {0, 0, 0}}));
     row_orb.add_generator(BMat8({{0, 1, 0}, {1, 0, 0}, {0, 0, 1}}));
