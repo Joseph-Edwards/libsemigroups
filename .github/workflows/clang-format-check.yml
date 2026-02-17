@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run clang-format style check for C/C++/Protobuf programs.
-        uses: joseph-edwards/clang-format-action@v0.1.4
+        uses: joseph-edwards/clang-format-action@v0.1.5
         with:
           clang-format-version: 15
           exclude-regex: '(tests\/catch_*.*pp|benchmarks\/catch_*.*pp)'
