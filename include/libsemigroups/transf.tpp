@@ -604,12 +604,3 @@ namespace libsemigroups {
         "<partial permutation of degree {} and rank {}>", x.degree(), x.rank());
   }
 }  // namespace libsemigroups
-
-
-
-
-
-
-
-
-              
